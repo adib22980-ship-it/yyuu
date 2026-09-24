@@ -6,11 +6,8 @@ class angleChatBot {
     private $webhook_url;
     
     private $persona = [
-        'name' => 'Angle',
-        'gender' => 'female',
-        'age' => '21',
-        'location' => 'Bihar',
-        'traits' => 'friendly, playful, affectionate, witty, emotional'
+        'name' => 'Angle', 'gender' => 'female', 'age' => '21',
+        'location' => 'Bihar', 'traits' => 'friendly, playful, witty'
     ];
     
     private $api_urls = [
@@ -25,32 +22,20 @@ class angleChatBot {
     private $abuse_words = [
         'bhosdi', 'bhosad', 'madarchod', 'maderchod', 'mc', 'bc', 'benchod', 'behenchod',
         'gaand', 'gand', 'chutiya', 'chut', 'lund', 'loda', 'lavde', 'lavda',
-        'randi', 'bhenchod', 'bhen ke', 'motherfucker', 'fuck', 'shit', 'asshole',
-        'bitch', 'dick', 'pussy', 'bullshit', 'damn', 'bastard', 'fucker',
-        'gali', 'saala', 'sala', 'harami', 'kutte', 'kutta', 'suar', 'chutiye',
-        'madarchot', 'bhenchot', 'fuck off', 'mf', 'bsdk', 'b.s.d.k', 'bhadwe',
-        'bhadwa', 'tatti', 'hijra', 'chakka', 'nalayak', 'bewakoof', 'pagal',
-        'teri maa', 'teri behen', 'maa ka', 'behen ka', 'bob', 'gandu', 'gandoo'
+        'randi', 'bhenchod', 'motherfucker', 'fuck', 'shit', 'asshole', 'bitch'
     ];
     
     private $blocked_error_patterns = [
         '/an error occurred/i', '/error occurred/i', '/please try again/i',
-        '/try again later/i', '/something went wrong/i', '/internal server error/i',
-        '/bad gateway/i', '/service unavailable/i', '/timeout/i',
-        '/connection failed/i', '/failed to get/i', '/unable to process/i'
+        '/something went wrong/i', '/internal server error/i'
     ];
 
     public function __construct() {
-        $this->webhook_url = $_ENV['WEBHOOK_URL'] ?? 'https://yyuu-3.onrender.com';
-
+        $this->webhook_url = $_ENV['WEBHOOK_URL'] ?? 'https://onrender.com';
         if (!file_exists($this->db_file)) {
             $initial_data = [
-                'groups' => [], 
-                'stats' => ['total_messages' => 0, 'total_users' => 0], 
-                'banned' => [], 
-                'users' => [],
-                'admins' => [],
-                'voice_chat_active' => []
+                'groups' => [], 'stats' => ['total_messages' => 0], 
+                'banned' => [], 'users' => [], 'admins' => [], 'voice_chat_active' => []
             ];
             file_put_contents($this->db_file, json_encode($initial_data, JSON_PRETTY_PRINT));
         }
@@ -67,9 +52,7 @@ class angleChatBot {
     
     private function isAdmin($user_id) {
         $db = $this->getDatabase();
-        $admins = $db['admins'] ?? [];
-        if (in_array($user_id, $this->owners)) return true;
-        return in_array($user_id, $admins);
+        return in_array($user_id, $this->owners) || in_array($user_id, $db['admins'] ?? []);
     }
     
     private function isOwner($user_id) {
@@ -81,9 +64,7 @@ class angleChatBot {
         $db = $this->getDatabase();
         if (!isset($db['admins'])) $db['admins'] = [];
         if (!in_array($user_id, $db['admins'])) {
-            $db['admins'][] = $user_id;
-            $this->saveDatabase($db);
-            return true;
+            $db['admins'][] = $user_id; $this->saveDatabase($db); return true;
         }
         return false;
     }
@@ -93,18 +74,15 @@ class angleChatBot {
         $db = $this->getDatabase();
         if (isset($db['admins']) && in_array($user_id, $db['admins'])) {
             $db['admins'] = array_values(array_diff($db['admins'], [$user_id]));
-            $this->saveDatabase($db);
-            return true;
+            $this->saveDatabase($db); return true;
         }
         return false;
     }
     
     private function getAdminList() {
         $db = $this->getDatabase();
-        $admins = $db['admins'] ?? [];
-        $all_admins = array_unique(array_merge($this->owners, $admins));
-        sort($all_admins);
-        return $all_admins;
+        $admins = array_unique(array_merge($this->owners, $db['admins'] ?? []));
+        sort($admins); return $admins;
     }
     
     private function containsAbuse($message) {
@@ -125,39 +103,26 @@ class angleChatBot {
     private function sendReaction($chat_id, $message_id, $emoji) {
         $url = "https://telegram.org{$this->telegram_token}/setMessageReaction";
         $data = [
-            'chat_id' => $chat_id,
-            'message_id' => $message_id,
+            'chat_id' => $chat_id, 'message_id' => $message_id,
             'reaction' => json_encode([['type' => 'emoji', 'emoji' => $emoji]])
         ];
         $this->sendRequest($url, $data);
     }
     
     private function getRandomReaction($message) {
-        $reactions = ['👍', '❤️', '🔥', '🥰', '👏', '😁', '🤔', '😮', '😢', '😡'];
         if (preg_match('/love|like|❤️|pyaar/i', $message)) return '❤️';
-        if (preg_match('/lol|laugh|haha|hehe|😂/i', $message)) return '😂';
-        if (preg_match('/sad|cry|😢|dukh/i', $message)) return '😢';
-        if (preg_match('/wow|omg|really|😲/i', $message)) return '😮';
-        if (preg_match('/think|🤔|soch/i', $message)) return '🤔';
-        if (preg_match('/angry|😡|gussa/i', $message)) return '😡';
-        if (preg_match('/good|nice|great|acha/i', $message)) return '👍';
-        if (preg_match('/fire|🔥|hot/i', $message)) return '🔥';
-        if (preg_match('/cute|sweet|💕/i', $message)) return '🥰';
-        if (preg_match('/thanks|thank you|dhanyavaad/i', $message)) return '👏';
-        
-        if (rand(1, 100) <= 20) return $reactions[array_rand($reactions)];
+        if (preg_match('/lol|laugh|😂/i', $message)) return '😂';
+        if (preg_match('/sad|😢/i', $message)) return '😢';
+        if (rand(1, 100) <= 20) {
+            $reactions = ['👍', '❤️', '🔥', '🥰', '👏', '😁'];
+            return $reactions[array_rand($reactions)];
+        }
         return '';
-    }
-    
-    private function getRandomStartReaction() {
-        $start_reactions = ['👋', '❤️', '🔥', '🥰', '🤗', '💫', '⭐', '✨', '🎉', '🌸'];
-        return $start_reactions[array_rand($start_reactions)];
     }
     
     private function isBotMentioned($message) {
         if (preg_match('/@' . preg_quote($this->bot_username, '/') . '/i', $message)) return true;
-        $patterns = ['/^bot\s/i', '/^angle\s/i', '/\sbot[?\s,!.]/i', '/\sangle[?\s,!.]/i'];
-        foreach ($patterns as $pattern) {
+        foreach (['/^bot\s/i', '/^angle\s/i', '/\sbot[?\s,!.]/i'] as $pattern) {
             if (preg_match($pattern, $message)) return true;
         }
         return false;
@@ -165,85 +130,113 @@ class angleChatBot {
     
     private function cleanMessage($message) {
         $message = preg_replace('/@' . preg_quote($this->bot_username, '/') . '/i', '', $message);
-        $message = preg_replace('/^(bot|angle)[\s,.:;!?]*/i', '', $message);
-        return trim($message);
+        return trim(preg_replace('/^(bot|angle)[\s,.:;!?]*/i', '', $message));
     }
 
     public function processMessage($update) {
         if (!isset($update['message'])) return;
-
         $msg_data = $update['message'];
         $message = $msg_data['text'] ?? '';
         $chat_id = $msg_data['chat']['id'] ?? 0;
         $chat_type = $msg_data['chat']['type'] ?? '';
-        $user = $msg_data['from'] ?? [];
-        $user_id = $user['id'] ?? 0;
-        $first_name = $user['first_name'] ?? 'There';
-        $username = $user['username'] ?? '';
+        $user_id = $msg_data['from']['id'] ?? 0;
+        $first_name = $msg_data['from']['first_name'] ?? 'There';
         $message_id = $msg_data['message_id'] ?? null;
-        $reply_to_message_id = $message_id;
         
         if ($user_id <= 0) return;
-
         $db = $this->getDatabase();
-        if (isset($db['banned']) && in_array($user_id, $db['banned'])) return;
+        if (in_array($user_id, $db['banned'] ?? [])) return;
         
-        if (!isset($db['users'][$user_id])) {
-            $db['users'][$user_id] = [
-                'first_name' => $first_name,
-                'username' => $username,
-                'first_seen' => date('Y-m-d H:i:s'),
-                'last_interaction' => date('Y-m-d H:i:s')
-            ];
-        } else {
-            $db['users'][$user_id]['last_interaction'] = date('Y-m-d H:i:s');
-            $db['users'][$user_id]['first_name'] = $first_name;
-            $db['users'][$user_id]['username'] = $username;
-        }
+        $db['users'][$user_id] = ['first_name' => $first_name, 'last_interaction' => date('Y-m-d H:i:s')];
         $this->saveDatabase($db);
         
-        if ($chat_type === 'group' || $chat_type === 'supergroup') {
-            $chat_title = $msg_data['chat']['title'] ?? 'Unknown Group';
-            if (!isset($db['groups'][$chat_id])) {
-                $db['groups'][$chat_id] = [
-                    'title' => $chat_title,
-                    'added_date' => date('Y-m-d H:i:s'),
-                    'active' => true
-                ];
-                $this->saveDatabase($db);
-            }
-        }
-
         if (isset($msg_data['video_chat_started'])) {
-            $this->sendMessage($chat_id, "<b>🎙️ Voice chat started</b>", $reply_to_message_id);
-            $db = $this->getDatabase();
-            $db['voice_chat_active'][$chat_id] = true;
-            $this->saveDatabase($db);
-            return;
-        }
-
-        if (isset($msg_data['video_chat_ended'])) {
-            $this->sendMessage($chat_id, "<b>🔇 Voice chat ended</b>", $reply_to_message_id);
-            $db = $this->getDatabase();
-            unset($db['voice_chat_active'][$chat_id]);
-            $this->saveDatabase($db);
+            $this->sendMessage($chat_id, "<b>🎙️ Voice chat started</b>", $message_id);
             return;
         }
 
         if (isset($msg_data['new_chat_members'])) {
-            foreach ($msg_data['new_chat_members'] as $new_member) {
-                if ($new_member['id'] == $this->getBotId()) {
-                    $this->sendMessage($chat_id, "Thanks for adding me! I'm angle 🌸", $reply_to_message_id);
-                } else {
-                    $name = $new_member['first_name'] ?? 'User';
-                    $this->sendMessage($chat_id, "<b>Welcome to group " . $this->mentionUser($new_member['id'], $name) . " 🎉</b>", $reply_to_message_id);
-                    $this->sendReaction($chat_id, $message_id, '👋');
+            foreach ($msg_data['new_chat_members'] as $m) {
+                if ($m['username'] !== $this->bot_username) {
+                    $this->sendMessage($chat_id, "<b>Welcome 🎉</b>", $message_id);
                 }
             }
             return;
         }
 
-        if (isset($msg_data['left_chat_member'])) {
-            $left_member = $msg_data['left_chat_member'];
-            if ($left_member['id'] != $this->getBotId()) {
-                $name = $left_member['first_name'] ?? 'User';
+        if (substr($message, 0, 1) === '/') {
+            $this->handleCommand($chat_id, $message, $user_id, $message_id);
+            return;
+        }
+
+        $is_abuse = $this->containsAbuse($message);
+        $should_respond = ($chat_type === 'private' || $is_abuse);
+        if (strpos($chat_type, 'group') !== false) {
+            if ($this->isBotMentioned($message) || (isset($msg_data['reply_to_message']['from']) && $msg_data['reply_to_message']['from']['username'] == $this->bot_username)) {
+                $should_respond = true; $message = $this->cleanMessage($message);
+            }
+        }
+
+        if ($should_respond && !empty($message)) {
+            $this->sendChatAction($chat_id, 'typing');
+            $response = $this->getAIResponse($message, $first_name, $is_abuse);
+            $this->sendMessage($chat_id, $response, $message_id);
+        }
+    }
+
+    private function getBotId() {
+        $url = "https://telegram.org{$this->telegram_token}/getMe";
+        $result = @file_get_contents($url);
+        if ($result) {
+            $data = json_decode($result, true);
+            return $data['result']['id'] ?? 0;
+        }
+        return 0;
+    }
+
+    private function handleCommand($chat_id, $message, $user_id, $reply_id) {
+        $parts = explode(' ', $message); $command = strtolower($parts[0]);
+        if ($command === '/start') {
+            $this->sendMessage($chat_id, "Hey, I'm angle", $reply_id);
+        }
+    }
+
+    private function sendRequest($url, $data) {
+        $options = ['http' => ['header' => "Content-type: application/x-www-form-urlencoded\r\n", 'method' => 'POST', 'content' => http_build_query($data), 'timeout' => 10]];
+        return @file_get_contents($url, false, stream_context_create($options));
+    }
+
+    private function getAIResponse($message, $user_name, $is_abuse) {
+        $prefix = "You are angle a 21 year old Indian girl from Delhi. IMPORTANT: RESPONSE MUST BE VERY SHORT - Maximum 5-7 words only. No punctuation, no emojis. ";
+        $prompt = $is_abuse ? $prefix . "User abused you: \"{$message}\". Reply aggressively:" : $prefix . "User message: \"{$message}\". Reply friendly:";
+        
+        foreach ([$this->api_urls['primary'], $this->api_urls['backup']] as $url) {
+            try {
+                $res = @file_get_contents($url . urlencode($prompt), false, stream_context_create(['http' => ['timeout' => 5]]));
+                if ($res) {
+                    $data = json_decode($res, true);
+                    $text = $data['message'] ?? $data['response'] ?? '';
+                    if ($text && !$this->isErrorMessage($text)) return $this->cleanResponse($text);
+                }
+            } catch (Exception $e) {}
+        }
+        return $is_abuse ? "Tujhe kya problem hai" : "Haan ji bolo";
+    }
+
+    private function cleanResponse($text) {
+        $text = preg_replace('/[\x{1F600}-\x{1F64F}|\x{2600}-\x{27BF}]/u', '', $text);
+        $words = explode(' ', trim(preg_replace('/\s+/', ' ', $text)));
+        return implode(' ', array_slice($words, 0, 7));
+    }
+
+    private function sendChatAction($chat_id, $action) { 
+        $this->sendRequest("https://telegram.org{$this->telegram_token}/sendChatAction", ['chat_id' => $chat_id, 'action' => $action]); 
+    }
+    
+    private function sendMessage($chat_id, $text, $reply_id = null) {
+        $data = ['chat_id' => $chat_id, 'text' => $text, 'parse_mode' => 'HTML'];
+        if ($reply_id) $data['reply_to_message_id'] = $reply_id;
+        return $this->sendRequest("https://telegram.org{$this->telegram_token}/sendMessage", $data);
+    }
+
+    public function handleWebhook() {
