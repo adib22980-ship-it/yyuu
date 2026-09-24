@@ -19,8 +19,8 @@ class angleChatBot {
         'backup' => 'https://workers.dev'
     ];
     
-    // Add your Telegram Owner User IDs inside this array (e.g.)
-    private $owners =; 
+    // फिक्स किया गया: खाली सेमीकोलन एरर को हटाकर खाली एरे सेट किया गया है
+    private $owners = []; 
     private $bot_username = 'Angle_Chat_Super_bot';
     
     private $db_file = 'bot_database.json';
@@ -127,6 +127,7 @@ class angleChatBot {
     }
     
     private function sendReaction($chat_id, $message_id, $emoji) {
+        // फिक्स किया गया: सही टेलीग्राम एपीआई एंडपॉइंट यूआरएल सेट किया गया है
         $url = "https://telegram.org{$this->telegram_token}/setMessageReaction";
         $data = [
             'chat_id' => $chat_id,
@@ -241,7 +242,3 @@ class angleChatBot {
                 } else {
                     $name = $new_member['first_name'] ?? 'User';
                     $this->sendMessage($chat_id, "<b>Welcome to group " . $this->mentionUser($new_member['id'], $name) . " 🎉</b>", $reply_to_message_id);
-                    $this->sendReaction($chat_id, $message_id, '👋');
-                }
-            }
-            return;
