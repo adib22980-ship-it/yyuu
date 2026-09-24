@@ -2,7 +2,6 @@
 // Chat Bot - AI Responses Only with Voice Chat & Admin Management
 
 class angleChatBot {
-    // आपका पुराना टोकन यहाँ डायरेक्ट जोड़ दिया गया है
     private $telegram_token = '8954943501:AAETwSNxNEEcIDz2VyqMuP-pw_wClU7q5W0';
     private $webhook_url;
     
@@ -19,10 +18,8 @@ class angleChatBot {
         'backup' => 'https://workers.dev'
     ];
     
-    // फिक्स किया गया: खाली सेमीकोलन एरर को हटाकर खाली एरे सेट किया गया है
     private $owners = []; 
     private $bot_username = 'Angle_Chat_Super_bot';
-    
     private $db_file = 'bot_database.json';
     
     private $abuse_words = [
@@ -44,8 +41,7 @@ class angleChatBot {
     ];
 
     public function __construct() {
-        // अगर Render पर Environment Variable सेट नहीं करेंगे, तो यह अपने आप काम करेगा
-        $this->webhook_url = $_ENV['WEBHOOK_URL'] ?? 'https://onrender.com';
+        $this->webhook_url = $_ENV['WEBHOOK_URL'] ?? 'https://yyuu-3.onrender.com';
 
         if (!file_exists($this->db_file)) {
             $initial_data = [
@@ -127,7 +123,6 @@ class angleChatBot {
     }
     
     private function sendReaction($chat_id, $message_id, $emoji) {
-        // फिक्स किया गया: सही टेलीग्राम एपीआई एंडपॉइंट यूआरएल सेट किया गया है
         $url = "https://telegram.org{$this->telegram_token}/setMessageReaction";
         $data = [
             'chat_id' => $chat_id,
@@ -242,3 +237,13 @@ class angleChatBot {
                 } else {
                     $name = $new_member['first_name'] ?? 'User';
                     $this->sendMessage($chat_id, "<b>Welcome to group " . $this->mentionUser($new_member['id'], $name) . " 🎉</b>", $reply_to_message_id);
+                    $this->sendReaction($chat_id, $message_id, '👋');
+                }
+            }
+            return;
+        }
+
+        if (isset($msg_data['left_chat_member'])) {
+            $left_member = $msg_data['left_chat_member'];
+            if ($left_member['id'] != $this->getBotId()) {
+                $name = $left_member['first_name'] ?? 'User';
