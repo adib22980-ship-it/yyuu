@@ -1,0 +1,247 @@
+<?php
+// Chat Bot - AI Responses Only with Voice Chat & Admin Management
+
+class angleChatBot {
+    // आपका पुराना टोकन यहाँ डायरेक्ट जोड़ दिया गया है
+    private $telegram_token = '8954943501:AAETwSNxNEEcIDz2VyqMuP-pw_wClU7q5W0';
+    private $webhook_url;
+    
+    private $persona = [
+        'name' => 'Angle',
+        'gender' => 'female',
+        'age' => '21',
+        'location' => 'Bihar',
+        'traits' => 'friendly, playful, affectionate, witty, emotional'
+    ];
+    
+    private $api_urls = [
+        'primary' => 'https://workers.dev',
+        'backup' => 'https://workers.dev'
+    ];
+    
+    // Add your Telegram Owner User IDs inside this array (e.g.)
+    private $owners =; 
+    private $bot_username = 'Angle_Chat_Super_bot';
+    
+    private $db_file = 'bot_database.json';
+    
+    private $abuse_words = [
+        'bhosdi', 'bhosad', 'madarchod', 'maderchod', 'mc', 'bc', 'benchod', 'behenchod',
+        'gaand', 'gand', 'chutiya', 'chut', 'lund', 'loda', 'lavde', 'lavda',
+        'randi', 'bhenchod', 'bhen ke', 'motherfucker', 'fuck', 'shit', 'asshole',
+        'bitch', 'dick', 'pussy', 'bullshit', 'damn', 'bastard', 'fucker',
+        'gali', 'saala', 'sala', 'harami', 'kutte', 'kutta', 'suar', 'chutiye',
+        'madarchot', 'bhenchot', 'fuck off', 'mf', 'bsdk', 'b.s.d.k', 'bhadwe',
+        'bhadwa', 'tatti', 'hijra', 'chakka', 'nalayak', 'bewakoof', 'pagal',
+        'teri maa', 'teri behen', 'maa ka', 'behen ka', 'bob', 'gandu', 'gandoo'
+    ];
+    
+    private $blocked_error_patterns = [
+        '/an error occurred/i', '/error occurred/i', '/please try again/i',
+        '/try again later/i', '/something went wrong/i', '/internal server error/i',
+        '/bad gateway/i', '/service unavailable/i', '/timeout/i',
+        '/connection failed/i', '/failed to get/i', '/unable to process/i'
+    ];
+
+    public function __construct() {
+        // अगर Render पर Environment Variable सेट नहीं करेंगे, तो यह अपने आप काम करेगा
+        $this->webhook_url = $_ENV['WEBHOOK_URL'] ?? 'https://onrender.com';
+
+        if (!file_exists($this->db_file)) {
+            $initial_data = [
+                'groups' => [], 
+                'stats' => ['total_messages' => 0, 'total_users' => 0], 
+                'banned' => [], 
+                'users' => [],
+                'admins' => [],
+                'voice_chat_active' => []
+            ];
+            file_put_contents($this->db_file, json_encode($initial_data, JSON_PRETTY_PRINT));
+        }
+    }
+
+    private function getDatabase() {
+        if (!file_exists($this->db_file)) return [];
+        return json_decode(file_get_contents($this->db_file), true) ?? [];
+    }
+
+    private function saveDatabase($data) {
+        file_put_contents($this->db_file, json_encode($data, JSON_PRETTY_PRINT));
+    }
+    
+    private function isAdmin($user_id) {
+        $db = $this->getDatabase();
+        $admins = $db['admins'] ?? [];
+        if (in_array($user_id, $this->owners)) return true;
+        return in_array($user_id, $admins);
+    }
+    
+    private function isOwner($user_id) {
+        return in_array($user_id, $this->owners);
+    }
+    
+    private function addAdmin($user_id) {
+        if ($this->isOwner($user_id)) return false;
+        $db = $this->getDatabase();
+        if (!isset($db['admins'])) $db['admins'] = [];
+        if (!in_array($user_id, $db['admins'])) {
+            $db['admins'][] = $user_id;
+            $this->saveDatabase($db);
+            return true;
+        }
+        return false;
+    }
+    
+    private function removeAdmin($user_id) {
+        if ($this->isOwner($user_id)) return false;
+        $db = $this->getDatabase();
+        if (isset($db['admins']) && in_array($user_id, $db['admins'])) {
+            $db['admins'] = array_values(array_diff($db['admins'], [$user_id]));
+            $this->saveDatabase($db);
+            return true;
+        }
+        return false;
+    }
+    
+    private function getAdminList() {
+        $db = $this->getDatabase();
+        $admins = $db['admins'] ?? [];
+        $all_admins = array_unique(array_merge($this->owners, $admins));
+        sort($all_admins);
+        return $all_admins;
+    }
+    
+    private function containsAbuse($message) {
+        $message_lower = strtolower($message);
+        foreach ($this->abuse_words as $word) {
+            if (strpos($message_lower, $word) !== false) return true;
+        }
+        return false;
+    }
+    
+    private function isErrorMessage($text) {
+        foreach ($this->blocked_error_patterns as $pattern) {
+            if (preg_match($pattern, $text)) return true;
+        }
+        return false;
+    }
+    
+    private function sendReaction($chat_id, $message_id, $emoji) {
+        $url = "https://telegram.org{$this->telegram_token}/setMessageReaction";
+        $data = [
+            'chat_id' => $chat_id,
+            'message_id' => $message_id,
+            'reaction' => json_encode([['type' => 'emoji', 'emoji' => $emoji]])
+        ];
+        $this->sendRequest($url, $data);
+    }
+    
+    private function getRandomReaction($message) {
+        $reactions = ['👍', '❤️', '🔥', '🥰', '👏', '😁', '🤔', '😮', '😢', '😡'];
+        if (preg_match('/love|like|❤️|pyaar/i', $message)) return '❤️';
+        if (preg_match('/lol|laugh|haha|hehe|😂/i', $message)) return '😂';
+        if (preg_match('/sad|cry|😢|dukh/i', $message)) return '😢';
+        if (preg_match('/wow|omg|really|😲/i', $message)) return '😮';
+        if (preg_match('/think|🤔|soch/i', $message)) return '🤔';
+        if (preg_match('/angry|😡|gussa/i', $message)) return '😡';
+        if (preg_match('/good|nice|great|acha/i', $message)) return '👍';
+        if (preg_match('/fire|🔥|hot/i', $message)) return '🔥';
+        if (preg_match('/cute|sweet|💕/i', $message)) return '🥰';
+        if (preg_match('/thanks|thank you|dhanyavaad/i', $message)) return '👏';
+        
+        if (rand(1, 100) <= 20) return $reactions[array_rand($reactions)];
+        return '';
+    }
+    
+    private function getRandomStartReaction() {
+        $start_reactions = ['👋', '❤️', '🔥', '🥰', '🤗', '💫', '⭐', '✨', '🎉', '🌸'];
+        return $start_reactions[array_rand($start_reactions)];
+    }
+    
+    private function isBotMentioned($message) {
+        if (preg_match('/@' . preg_quote($this->bot_username, '/') . '/i', $message)) return true;
+        $patterns = ['/^bot\s/i', '/^angle\s/i', '/\sbot[?\s,!.]/i', '/\sangle[?\s,!.]/i'];
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $message)) return true;
+        }
+        return false;
+    }
+    
+    private function cleanMessage($message) {
+        $message = preg_replace('/@' . preg_quote($this->bot_username, '/') . '/i', '', $message);
+        $message = preg_replace('/^(bot|angle)[\s,.:;!?]*/i', '', $message);
+        return trim($message);
+    }
+
+    public function processMessage($update) {
+        if (!isset($update['message'])) return;
+
+        $msg_data = $update['message'];
+        $message = $msg_data['text'] ?? '';
+        $chat_id = $msg_data['chat']['id'] ?? 0;
+        $chat_type = $msg_data['chat']['type'] ?? '';
+        $user = $msg_data['from'] ?? [];
+        $user_id = $user['id'] ?? 0;
+        $first_name = $user['first_name'] ?? 'There';
+        $username = $user['username'] ?? '';
+        $message_id = $msg_data['message_id'] ?? null;
+        $reply_to_message_id = $message_id;
+        
+        if ($user_id <= 0) return;
+
+        $db = $this->getDatabase();
+        if (isset($db['banned']) && in_array($user_id, $db['banned'])) return;
+        
+        if (!isset($db['users'][$user_id])) {
+            $db['users'][$user_id] = [
+                'first_name' => $first_name,
+                'username' => $username,
+                'first_seen' => date('Y-m-d H:i:s'),
+                'last_interaction' => date('Y-m-d H:i:s')
+            ];
+        } else {
+            $db['users'][$user_id]['last_interaction'] = date('Y-m-d H:i:s');
+            $db['users'][$user_id]['first_name'] = $first_name;
+            $db['users'][$user_id]['username'] = $username;
+        }
+        $this->saveDatabase($db);
+        
+        if ($chat_type === 'group' || $chat_type === 'supergroup') {
+            $chat_title = $msg_data['chat']['title'] ?? 'Unknown Group';
+            if (!isset($db['groups'][$chat_id])) {
+                $db['groups'][$chat_id] = [
+                    'title' => $chat_title,
+                    'added_date' => date('Y-m-d H:i:s'),
+                    'active' => true
+                ];
+                $this->saveDatabase($db);
+            }
+        }
+
+        if (isset($msg_data['video_chat_started'])) {
+            $this->sendMessage($chat_id, "<b>🎙️ Voice chat started</b>", $reply_to_message_id);
+            $db = $this->getDatabase();
+            $db['voice_chat_active'][$chat_id] = true;
+            $this->saveDatabase($db);
+            return;
+        }
+
+        if (isset($msg_data['video_chat_ended'])) {
+            $this->sendMessage($chat_id, "<b>🔇 Voice chat ended</b>", $reply_to_message_id);
+            $db = $this->getDatabase();
+            unset($db['voice_chat_active'][$chat_id]);
+            $this->saveDatabase($db);
+            return;
+        }
+
+        if (isset($msg_data['new_chat_members'])) {
+            foreach ($msg_data['new_chat_members'] as $new_member) {
+                if ($new_member['id'] == $this->getBotId()) {
+                    $this->sendMessage($chat_id, "Thanks for adding me! I'm angle 🌸", $reply_to_message_id);
+                } else {
+                    $name = $new_member['first_name'] ?? 'User';
+                    $this->sendMessage($chat_id, "<b>Welcome to group " . $this->mentionUser($new_member['id'], $name) . " 🎉</b>", $reply_to_message_id);
+                    $this->sendReaction($chat_id, $message_id, '👋');
+                }
+            }
+            return;
