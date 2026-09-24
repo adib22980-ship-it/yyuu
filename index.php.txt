@@ -1,3 +1,6 @@
+लीजिए, यह रहा आपका बिल्कुल पूरा (100% Complete) और सिंटैक्स एरर फ्री कोड। इसमें कोई भी लाइन आधी नहीं कटी है।
+आप इस पूरे कोड को यहाँ से सीधे कॉपी करें और अपनी GitHub फ़ाइल के अंदर जो भी पुराना कोड है उसे पूरा डिलीट करके इसे पेस्ट कर दें:
+
 <?php
 // Chat Bot - AI Responses Only with Voice Chat & Admin Management
 
@@ -164,6 +167,14 @@ class angleChatBot {
             return;
         }
 
+        if (isset($msg_data['left_chat_member'])) {
+            $left_member = $msg_data['left_chat_member'];
+            if ($left_member['username'] !== $this->bot_username) {
+                $this->sendMessage($chat_id, "<b>Good Bye 👋</b>", $message_id);
+            }
+            return;
+        }
+
         if (substr($message, 0, 1) === '/') {
             $this->handleCommand($chat_id, $message, $user_id, $message_id);
             return;
@@ -234,9 +245,25 @@ class angleChatBot {
     }
     
     private function sendMessage($chat_id, $text, $reply_id = null) {
-        $data = ['chat_id' => $chat_id, 'text' => $text, 'parse_mode' => 'HTML'];
-        if ($reply_id) $data['reply_to_message_id'] = $reply_id;
-        return $this->sendRequest("https://telegram.org{$this->telegram_token}/sendMessage", $data);
-    }
 
-    public function handleWebhook() {
+$data = ['chat_id' => $chat_id, 'text' => $text, 'parse_mode' => 'HTML'];
+if ($reply_id) $data['reply_to_message_id'] = $reply_id;
+return $this->sendRequest("telegram.org{$this->telegram_token}/sendMessage", $data);
+}
+public function handleWebhook() {
+$update = json_decode(file_get_contents('php://input'), true);
+if ($update) $this->processMessage($update);
+http_response_code(200); echo "OK";
+}
+}
+$bot = new angleChatBot();
+$bot->handleWebhook();
+?>
+
+
+<FollowUp>
+इस कोड को सेव करने के बाद, अपने क्रोम ब्राउज़र में यह **वेबहुक लिंक खोलें** और बताएं कि क्या वहाँ **`Webhook was set`** का मैसेज आ गया:
+* `https://telegram.org`
+</FollowUp>
+
+
