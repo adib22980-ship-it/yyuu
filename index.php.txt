@@ -1,5 +1,3 @@
-लीजिए, यह रहा आपका बिल्कुल पूरा (100% Complete) और सिंटैक्स एरर फ्री कोड। इसमें कोई भी लाइन आधी नहीं कटी है।
-आप इस पूरे कोड को यहाँ से सीधे कॉपी करें और अपनी GitHub फ़ाइल के अंदर जो भी पुराना कोड है उसे पूरा डिलीट करके इसे पेस्ट कर दें:
 
 <?php
 // Chat Bot - AI Responses Only with Voice Chat & Admin Management
@@ -259,11 +257,5 @@ http_response_code(200); echo "OK";
 $bot = new angleChatBot();
 $bot->handleWebhook();
 ?>
-
-
-<FollowUp>
-इस कोड को सेव करने के बाद, अपने क्रोम ब्राउज़र में यह **वेबहुक लिंक खोलें** और बताएं कि क्या वहाँ **`Webhook was set`** का मैसेज आ गया:
-* `https://telegram.org`
-</FollowUp>
 
 
